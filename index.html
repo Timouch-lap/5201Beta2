@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Аппарат 5101 — Интерактивная модель</title>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%; width: 100%; overflow: hidden;
+      background: #0d1117;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      touch-action: manipulation;
+      color: #e6edf3;
+    }
+    model-viewer {
+      width: 100%;
+      height: calc(100% - 90px);
+      background: #0d1117;
+    }
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 48px;
+      background: rgba(13,17,23,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid #30363d;
+      display: flex; align-items: center; padding: 0 14px; z-index: 50; gap: 10px;
+    }
+    .topbar h1 { font-size: 15px; font-weight: 600; flex: 1; }
+    .status-badge {
+      font-size: 12px; padding: 4px 12px; border-radius: 20px; font-weight: 600;
+    }
+    .status-ok { background: #238636; color: #fff; }
+    .status-warn { background: #9e6a03; color: #fff; }
+    .status-alarm { background: #da3633; color: #fff; }
+
+    .bottom-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 90px;
+      background: rgba(13,17,23,0.96);
+      border-top: 1px solid #30363d;
+      display: flex; align-items: center; justify-content: space-around;
+      padding: 8px 10px; z-index: 50; gap: 8px;
+    }
+    .elem-btn {
+      flex: 1; max-width: 120px; height: 72px;
+      border-radius: 12px; border: 2px solid #30363d;
+      background: #161b22; color: #e6edf3;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    }
+    .elem-btn:active { transform: scale(0.96); }
+    .elem-btn .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .elem-btn.green { border-color: #3fb950; }
+    .elem-btn.yellow { border-color: #d29922; }
+    .elem-btn.red { border-color: #f85149; }
+
+    .card-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      z-index: 100; display: none; align-items: flex-end; justify-content: center; padding: 12px;
+    }
+    .card-overlay.visible { display: flex; }
+    .card {
+      width: 100%; max-width: 380px; background: #161b22;
+      border-radius: 16px; border: 1px solid #30363d;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+      animation: slideUp 0.22s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .card-header {
+      padding: 16px 18px 10px; display: flex; align-items: center; gap: 12px;
+    }
+    .card-header .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+    .card-header h2 { font-size: 18px; font-weight: 600; flex: 1; }
+    .card-close {
+      background: none; border: none; color: #8b949e;
+      font-size: 28px; cursor: pointer; padding: 0 6px; line-height: 1;
+    }
+    .card-body { padding: 0 18px 20px; }
+    .value-row {
+      display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;
+    }
+    .value-label { font-size: 14px; color: #8b949e; }
+    .value-number { font-size: 32px; font-weight: 700; }
+    .value-unit { font-size: 15px; color: #8b949e; margin-left: 4px; }
+    .state-text {
+      font-size: 14px; margin: 12px 0 18px; padding: 10px 12px;
+      border-radius: 8px; background: #21262d;
+    }
+    .action-btn {
+      width: 100%; padding: 16px; border: none; border-radius: 10px;
+      font-size: 17px; font-weight: 700; cursor: pointer; color: #fff; min-height: 54px;
+    }
+    .action-btn:active { filter: brightness(0.85); }
+    .action-btn.green { background: #238636; }
+    .action-btn.yellow { background: #9e6a03; }
+    .action-btn.red { background: #da3633; }
+    .action-btn.blue { background: #1f6feb; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>Аппарат 5101</h1>
+    <div class="status-badge status-ok" id="globalStatus">Норма</div>
+  </div>
+
+  <model-viewer
+    id="model"
+    src="5201_v1.glb"
+    alt="Аппарат 5101"
+    camera-controls
+    touch-action="none"
+    shadow-intensity="1.1"
+    environment-image="neutral"
+    exposure="1"
+    auto-rotate
+    auto-rotate-delay="12000"
+    rotation-per-second="10deg"
+  ></model-viewer>
+
+  <div class="bottom-bar">
+    <button class="elem-btn green" id="btn-pump" onclick="openCard('pump')">
+      <div class="dot" id="dot-pump" style="background:#3fb950"></div>
+      Насос
+    </button>
+    <button class="elem-btn green" id="btn-valve" onclick="openCard('valve')">
+      <div class="dot" id="dot-valve" style="background:#3fb950"></div>
+      Клапан
+    </button>
+    <button class="elem-btn green" id="btn-sensor" onclick="openCard('sensor')">
+      <div class="dot" id="dot-sensor" style="background:#3fb950"></div>
+      Давление
+    </button>
+  </div>
+
+  <div class="card-overlay" id="overlay" onclick="if(event.target===this) closeCard()">
+    <div class="card">
+      <div class="card-header">
+        <div class="dot" id="cardDot"></div>
+        <h2 id="cardTitle">—</h2>
+        <button class="card-close" onclick="closeCard()">×</button>
+      </div>
+      <div class="card-body">
+        <div class="value-row">
+          <span class="value-label" id="cardValueLabel">Значение</span>
+          <div>
+            <span class="value-number" id="cardValue">—</span>
+            <span class="value-unit" id="cardUnit"></span>
+          </div>
+        </div>
+        <div class="state-text" id="cardState">—</div>
+        <button class="action-btn" id="cardAction" onclick="doAction()">—</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const elements = {
+      pump: {
+        name: "Насос подачи",
+        valueLabel: "Производительность",
+        unit: "%",
+        value: 68,
+        target: 68,
+        state: "ok",
+        running: true,
+        actionLabel: () => elements.pump.running ? "СТОП" : "ПУСК",
+        actionColor: () => elements.pump.running ? "red" : "green",
+        stateText: () => {
+          if (!elements.pump.running) return "Остановлен";
+          if (elements.pump.state === "ok") return "Работает стабильно";
+          if (elements.pump.state === "warn") return "Повышенная нагрузка";
+          return "АВАРИЙНЫЙ РЕЖИМ";
+        }
+      },
+      valve: {
+        name: "Клапан на линии",
+        valueLabel: "Открытие",
+        unit: "%",
+        value: 100,
+        target: 100,
+        state: "ok",
+        open: true,
+        actionLabel: () => elements.valve.open ? "ЗАКРЫТЬ" : "ОТКРЫТЬ",
+        actionColor: () => elements.valve.open ? "yellow" : "blue",
+        stateText: () => {
+          if (!elements.valve.open && elements.valve.value < 5) return "Полностью закрыт";
+          if (elements.valve.value > 90) return "Полностью открыт";
+          if (elements.valve.state === "warn") return "Частично открыт";
+          return "В процессе движения";
+        }
+      },
+      sensor: {
+        name: "Давление на входе",
+        valueLabel: "Давление",
+        unit: "бар",
+        value: 4.1,
+        target: 4.1,
+        state: "ok",
+        actionLabel: () => "СБРОС ТРЕВОГИ",
+        actionColor: () => "blue",
+        stateText: () => {
+          if (elements.sensor.state === "ok") return "Давление в норме (3.5–5.5 бар)";
+          if (elements.sensor.state === "warn") return "Давление повышенное";
+          return "КРИТИЧЕСКОЕ ДАВЛЕНИЕ!";
+        }
+      }
+    };
+
+    let currentId = null;
+    let time = 0;
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function simulate() {
+      time += 0.07;
+
+      // --- Pressure (main driver) ---
+      const s = elements.sensor;
+      // Slow wave + small noise
+      s.target = 4.3 + Math.sin(time * 0.15) * 1.1 + Math.sin(time * 0.4) * 0.3;
+      s.value = lerp(s.value, s.target, 0.04);
+
+      if (s.value < 5.4) s.state = "ok";
+      else if (s.value < 6.6) s.state = "warn";
+      else s.state = "alarm";
+
+      // --- Pump ---
+      const p = elements.pump;
+      if (p.running) {
+        // Pump load reacts to pressure
+        p.target = 55 + (s.value - 3.5) * 8 + Math.sin(time * 0.6) * 4;
+        p.target = Math.max(40, Math.min(97, p.target));
+        p.value = lerp(p.value, p.target, 0.06);
+      } else {
+        p.target = 0;
+        p.value = lerp(p.value, 0, 0.1);
+      }
+
+      if (!p.running) p.state = "ok";
+      else if (p.value < 82) p.state = "ok";
+      else if (p.value < 91) p.state = "warn";
+      else p.state = "alarm";
+
+      // --- Valve ---
+      const v = elements.valve;
+      v.target = v.open ? 100 : 0;
+      v.value = lerp(v.value, v.target, 0.05);
+
+      if (v.value > 80) v.state = "ok";
+      else if (v.value > 20) v.state = "warn";
+      else v.state = v.open ? "alarm" : "ok";
+
+      updateButtons();
+      updateGlobalStatus();
+      if (currentId) refreshCard();
+    }
+
+    function colorByState(state) {
+      return state === "ok" ? "#3fb950" : state === "warn" ? "#d29922" : "#f85149";
+    }
+
+    function updateButtons() {
+      for (const id of ["pump", "valve", "sensor"]) {
+        const btn = document.getElementById("btn-" + id);
+        const dot = document.getElementById("dot-" + id);
+        const st = elements[id].state;
+        btn.className = "elem-btn " + (st === "ok" ? "green" : st === "warn" ? "yellow" : "red");
+        dot.style.background = colorByState(st);
+      }
+    }
+
+    function updateGlobalStatus() {
+      const badge = document.getElementById("globalStatus");
+      const states = Object.values(elements).map(e => e.state);
+      if (states.includes("alarm")) {
+        badge.textContent = "АВАРИЯ";
+        badge.className = "status-badge status-alarm";
+      } else if (states.includes("warn")) {
+        badge.textContent = "Внимание";
+        badge.className = "status-badge status-warn";
+      } else {
+        badge.textContent = "Норма";
+        badge.className = "status-badge status-ok";
+      }
+    }
+
+    function openCard(id) {
+      currentId = id;
+      refreshCard();
+      document.getElementById("overlay").classList.add("visible");
+    }
+
+    function closeCard() {
+      currentId = null;
+      document.getElementById("overlay").classList.remove("visible");
+    }
+
+    function refreshCard() {
+      const e = elements[currentId];
+      if (!e) return;
+      document.getElementById("cardTitle").textContent = e.name;
+      document.getElementById("cardValueLabel").textContent = e.valueLabel;
+      document.getElementById("cardValue").textContent =
+        (Math.abs(e.value % 1) > 0.05) ? e.value.toFixed(1) : Math.round(e.value);
+      document.getElementById("cardUnit").textContent = e.unit;
+      document.getElementById("cardState").textContent = e.stateText();
+      document.getElementById("cardDot").style.background = colorByState(e.state);
+
+      const btn = document.getElementById("cardAction");
+      btn.textContent = e.actionLabel();
+      btn.className = "action-btn " + e.actionColor();
+    }
+
+    function doAction() {
+      const e = elements[currentId];
+      if (!e) return;
+
+      if (currentId === "pump") {
+        e.running = !e.running;
+      } else if (currentId === "valve") {
+        e.open = !e.open;
+      } else if (currentId === "sensor") {
+        // Force pressure down to normal
+        e.target = 4.0;
+        e.value = 4.0;
+        e.state = "ok";
+      }
+      refreshCard();
+      updateButtons();
+      updateGlobalStatus();
+    }
+
+    // Smooth 20 FPS simulation
+    setInterval(simulate, 50);
+    updateButtons();
+    updateGlobalStatus();
+
+    const model = document.getElementById("model");
+    model.addEventListener("interact", () => model.autoRotate = false);
+  </script>
+</body>
+</html>
